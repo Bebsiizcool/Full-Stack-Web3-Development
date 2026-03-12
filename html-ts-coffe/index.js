@@ -1,4 +1,7 @@
-import { createWalletClient, custom, createPublicClient } from "https://esm.sh/viem";
+
+import { createWalletClient, custom, createPublicClient, parseEther, defineChain } from "https://esm.sh/viem";
+import { contractAddress, coffeeabi } from "./constants.js"
+
 const connectbtn = document.getElementById("connectbtn")
 const fundbtn = document.getElementById("fundbtn")
 const ethamountinput = document.getElementById("ethamount")
@@ -9,8 +12,7 @@ async function connect() {
     if (typeof window.ethereum !== "undefined") {
 
         walletclient = createWalletClient({
-            transport: custom(window.ethereum)
-        })
+            transport: custom(window.ethereum)})
         await walletclient.requestAddresses()
         connectbtn.innerHTML = "connected"
 
@@ -28,13 +30,19 @@ async function fund() {
         walletclient = createWalletClient({
             transport: custom(window.ethereum)
         })
-        await walletclient.requestAddresses()
+       const [connectedAccount] = await walletclient.requestAddresses()
+       const currentChain = await getCurrentChain(walletclient)
         publicClient = createPublicClient({
             transport: custom(window.ethereum)
         })
-
+        
         await publicClient.simulateContract({
-            
+            address: contractAddress,
+            abi: coffeeabi,
+            functionName: "fund",
+            account: connectedAccount,
+            chain: currentChain,
+            value: parseEther(ethamount)
         })
     }
     else {
@@ -42,5 +50,25 @@ async function fund() {
     }
 
 }
+
+async function getCurrentChain(client) {
+  const chainId = await client.getChainId()
+  const currentChain = defineChain({
+    id: chainId,
+    name: "Custom Chain",
+    nativeCurrency: {
+      name: "Ether",
+      symbol: "ETH",
+      decimals: 18,
+    },
+    rpcUrls: {
+      default: {
+        http: ["http://localhost:8545"],
+      },
+    },
+  })
+  return currentChain
+}
+
 connectbtn.onclick = connect
 fundbtn.onclick = fund
